@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>รับเรื่องคำขอจัดงาน · NEXT TECH</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #f5f4f8; --card: #fff; --ink: #1d1b24; --muted: #6b6878; --line: #e3e0ea; --accent: #1b3c87;
+          --ok: #1e6b3a; --ok-soft: #e6f4ea; --warn: #8a5a00; --warn-soft: #fff4dc; --err: #b3261e; --err-soft: #fdecea; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #141218; --card: #1e1b24; --ink: #ece9f2; --muted: #a39fae; --line: #34303d;
+      --accent: #9db7f5; --ok: #8fd6a4; --ok-soft: #1b3324; --warn: #f0c46a; --warn-soft: #3a2f16; --err: #f2b8b5; --err-soft: #3b1f1d; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 "IBM Plex Sans Thai", system-ui, sans-serif; }
+  .demo { background: #fff4dc; color: #8a5a00; text-align: center; padding: 8px 16px; font-size: 14px; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.35rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-bottom: 14px; }
+  dl { display: grid; grid-template-columns: 120px 1fr; gap: 4px 12px; margin: 0; }
+  dt { color: var(--muted); font-size: .9rem; } dd { margin: 0; font-weight: 500; }
+  .owners { display: grid; gap: 8px; margin: 6px 0 14px; }
+  .owners label { display: flex; gap: 10px; align-items: center; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 12px; cursor: pointer; }
+  .owners input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+  .owners label:has(input:checked) { border-color: var(--accent); }
+  button { width: 100%; font: inherit; font-weight: 600; padding: 12px; border-radius: 12px; border: 0; background: var(--accent); color: #fff; cursor: pointer; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button { color: #141218; } }
+  button:disabled { opacity: .55; cursor: wait; }
+  .msg { border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+  .msg.ok { background: var(--ok-soft); color: var(--ok); }
+  .msg.warn { background: var(--warn-soft); color: var(--warn); }
+  .msg.err { background: var(--err-soft); color: var(--err); }
+  .msg a { color: inherit; font-weight: 600; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>รับเรื่องคำขอจัดงาน</h1>
+  <p class="sub" id="sub">กำลังโหลดข้อมูลคำขอ…</p>
+  <div id="msg" class="msg hidden"></div>
+  <div id="detail" class="card hidden"><dl id="dl"></dl></div>
+  <div id="claimBox" class="card hidden">
+    <div style="font-weight:600">เลือกผู้รับเรื่อง</div>
+    <div class="owners" id="owners"></div>
+    <button id="confirm">ยืนยันรับเรื่อง และส่งใบแจ้งงานให้ลูกค้า</button>
+  </div>
+</div>
+<script>
+var API_URL = 'https://script.google.com/macros/s/AKfycbzb4Q86ODKGuftrx3pFy8ASfUJ2Z1BnO8FA0k5_UFySg9CkOw5YCTe8-6tDMAgH4pimEQ/exec';
+(function () {
+  var q = new URLSearchParams(typeof CLAIM_QUERY === 'string' ? CLAIM_QUERY : location.search), id = q.get('id') || '', token = q.get('t') || '', by = q.get('by') || '';
+  var $ = function (s) { return document.querySelector(s); };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function call(fn, args) {
+    if (!API_URL) {
+      return new Promise(function (resolve, reject) {
+        google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[fn].apply(null, args);
+      });
+    }
+    return fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn: fn, args: args }) })
+      .then(function (r) { return r.json(); })
+      .then(function (res) { if (res.error) throw new Error(res.error); return res.result; });
+  }
+  function msg(kind, html) { var m = $('#msg'); m.className = 'msg ' + kind; m.innerHTML = html; }
+  function showDetail(r) {
+    $('#dl').innerHTML = [['เลขที่คำขอ', r.id], ['ชื่องาน', r.eventName], ['วันที่จัดงาน', r.eventDate], ['สถานที่', r.venue],
+      ['ผู้จัดงาน', r.organizer], ['ผู้ประสานงาน', r.coordinator], ['ค่าประกัน', r.depositLabel]]
+      .map(function (x) { return '<dt>' + esc(x[0]) + '</dt><dd>' + esc(x[1]) + '</dd>'; }).join('');
+    $('#detail').classList.remove('hidden');
+  }
+  function showClaimed(r, justNow) {
+    $('#claimBox').classList.add('hidden');
+    msg(justNow ? 'ok' : 'warn', (justNow ? '✅ รับเรื่องเรียบร้อย' : 'คำขอนี้รับเรื่องไปแล้ว') +
+      ' โดย <b>' + esc(r.ownerName) + '</b>' + (r.claimedAt ? ' เมื่อ ' + esc(r.claimedAt) : '') +
+      (justNow ? '<br>ระบบส่งใบแจ้งงานให้ทีมงานและลูกค้าทางอีเมลแล้ว' : '') +
+      (r.fileUrl ? '<br><a href="' + esc(r.fileUrl) + '" target="_blank" rel="noopener">เปิดไฟล์ใบแจ้งงานใน Drive</a>' : ''));
+  }
+  call('getClaimInfo', [id, token]).then(function (res) {
+    if (!res.ok) { $('#sub').textContent = ''; return msg('err', esc(res.error)); }
+    var r = res.request;
+    $('#sub').textContent = 'ตรวจข้อมูล แล้วยืนยันว่าใครเป็นผู้รับเรื่อง — ชื่อนี้จะขึ้นในช่อง “ลงชื่อผู้แจ้งงาน” คู่กับคุณกมลเทพ';
+    showDetail(r);
+    if (r.status === 'รับเรื่องแล้ว') return showClaimed(r, false);
+    $('#owners').innerHTML = r.owners.map(function (o) {
+      return '<label><input type="radio" name="owner" value="' + esc(o.key) + '"' + (o.key === by ? ' checked' : '') + '> ' + esc(o.name) + '</label>';
+    }).join('');
+    $('#claimBox').classList.remove('hidden');
+  }).catch(function (e) { $('#sub').textContent = ''; msg('err', 'โหลดข้อมูลไม่สำเร็จ: ' + esc(e.message)); });
+
+  $('#confirm').onclick = function () {
+    var sel = document.querySelector('input[name="owner"]:checked');
+    if (!sel) return msg('err', 'กรุณาเลือกผู้รับเรื่อง');
+    var btn = this; btn.disabled = true; btn.textContent = 'กำลังสร้างใบแจ้งงาน…';
+    call('claimRequest', [id, sel.value, token]).then(function (res) {
+      if (res.ok) return showClaimed(res.request, true);
+      if (res.already) return showClaimed(res.request, false);
+      btn.disabled = false; btn.textContent = 'ยืนยันรับเรื่อง และส่งใบแจ้งงานให้ลูกค้า'; msg('err', esc(res.error));
+    }).catch(function (e) { btn.disabled = false; btn.textContent = 'ยืนยันรับเรื่อง และส่งใบแจ้งงานให้ลูกค้า'; msg('err', esc(e.message)); });
+  };
+})();
+</script>
+</body>
+</html>
