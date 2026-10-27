@@ -555,8 +555,8 @@ function startForm(BOOT) {
       btn.textContent = 'ยืนยันและส่งแจ้งงาน';
       if (!res.ok) { btn.disabled = false; showStep('form'); return showErrors(res.errors); }
       clearDraft();
-      $('#doneBody').innerHTML = '<p>เลขที่คำขอ <b>' + esc(res.id) + '</b></p><p>ทีมงาน SCBX NEXT STAGE ได้รับข้อมูลแล้ว ' +
-        'เจ้าหน้าที่จะยืนยันรับเรื่อง และส่งใบแจ้งงานฉบับสมบูรณ์ไปที่ <b>' + esc(lastData.contactEmail) + '</b> อีกครั้ง</p>';
+      $('#doneBody').innerHTML = '<p>เลขที่คำขอ <b>' + esc(res.id) + '</b></p><p><b>เอกสารแจ้งงานถูกส่งแล้ว กำลังรอเจ้าหน้าที่ตรวจสอบ</b></p>' +
+        '<p>เมื่อเจ้าหน้าที่รับเรื่องแล้ว ระบบจะส่งใบแจ้งงานฉบับสมบูรณ์ไปที่ <b>' + esc(lastData.contactEmail) + '</b></p>';
       showStep('done');
     }).catch(function (e) { btn.disabled = false; btn.textContent = 'ยืนยันและส่งแจ้งงาน'; showErrors([e.message || String(e)]); });
   };
