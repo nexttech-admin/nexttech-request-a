@@ -55,6 +55,7 @@
   .toast.ok { background: var(--ok-soft); color: var(--ok); } .toast.err { background: var(--err-soft); color: var(--err); }
   .err { color: var(--err); min-height: 1.4em; }
   a { color: var(--navy); font-weight: 600; }
+  .meName { color: var(--accent); font-weight: 700; font-size: 1.05em; }
   .hidden { display: none !important; }
 </style>
 </head>
@@ -165,7 +166,7 @@ var API_URL = "https://script.google.com/macros/s/AKfycbzb4Q86ODKGuftrx3pFy8ASfU
     var keep = {};  // auto-refresh must not reset a choice someone is making
     document.querySelectorAll('[data-owner-for]').forEach(function (s) { if (s.value) keep[s.dataset.ownerFor] = s.value; });
     $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
-    $('#me').textContent = 'เข้าใช้งานในชื่อ ' + res.me.name + ' — เลือกผู้รับเรื่องแล้วกดยืนยัน ชื่อผู้รับเรื่องจะลงในใบแจ้งงานคู่กับคุณกมลเทพ';
+    $('#me').innerHTML = 'เข้าใช้งานในชื่อ <b class="meName">' + esc(res.me.name) + '</b> — เลือกผู้รับเรื่องแล้วกดยืนยัน ชื่อผู้รับเรื่องจะลงในใบแจ้งงานคู่กับคุณกมลเทพ';
     $('#pendingCount').textContent = res.pending.length;
     $('#pending').innerHTML = res.pending.length ? res.pending.map(function (x) { return card(x, true); }).join('')
       : '<div class="empty">ไม่มีงานรอรับเรื่อง 🎉</div>';
