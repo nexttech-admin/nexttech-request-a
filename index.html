@@ -743,10 +743,19 @@ function startForm(BOOT) {
 }
 
 if (BOOT) startForm(BOOT);
-else fetch(API_URL + '?api=boot').then(function (r) { return r.json(); }).then(startForm).catch(function () {
+else (function loadBoot(attempt) {
+  // the Apps Script API can fail briefly (cold start, redeploy in progress): retry before giving up
+  fetch(API_URL + '?api=boot').then(function (r) { return r.json(); }).then(function (boot) {
+    try { startForm(boot); } catch (e) { console.error(e); showLoadError(); }
+  }).catch(function (e) {
+    if (attempt < 3) return setTimeout(function () { loadBoot(attempt + 1); }, attempt * 1500);
+    console.error(e); showLoadError();
+  });
+})(1);
+function showLoadError() {
   document.getElementById('errors').textContent = L('โหลดฟอร์มไม่สำเร็จ กรุณารีเฟรชหน้านี้อีกครั้ง', 'The form could not be loaded. Please refresh this page.');
   document.getElementById('errors').classList.remove('hidden');
-});
+}
 </script>
 </body>
 </html>
