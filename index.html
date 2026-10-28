@@ -117,7 +117,7 @@
   <div id="errors" class="msg err hidden" data-noi18n></div>
 
   <!-- ===================== STEP 1: FORM ===================== -->
-  <form id="form" novalidate autocomplete="on">
+  <form id="form" novalidate autocomplete="off">
     <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
 
 
@@ -283,11 +283,11 @@ var API_URL = "https://script.google.com/macros/s/AKfycbzb4Q86ODKGuftrx3pFy8ASfU
 </script>
 <script>
 // ---------- TH / EN (customer-facing only: what is sent and the ใบแจ้งงาน stay Thai) ----------
-var LANG = (function () {
-  var q = new URLSearchParams(location.search).get('lang');
-  if (q === 'en' || q === 'th') return q;
-  try { return localStorage.getItem('nextstage-lang') === 'en' ? 'en' : 'th'; } catch (e) { return 'th'; }
-})();
+// every visit starts in Thai with an empty form: nothing is kept between page loads
+var LANG = 'th';
+try { localStorage.removeItem('nextstage-lang'); localStorage.removeItem('nextstage-request-draft-v1'); } catch (e) {}
+// back/forward cache would show the old filled-in page: load it fresh instead
+window.addEventListener('pageshow', function (e) { if (e.persisted) location.reload(); });
 function L(th, en) { return LANG === 'en' ? en : th; }
 var EN_NOTE = 'Please note: automated system emails will be sent in English, but the attached copy of the event notification form will be in Thai, as it is the same official form submitted to the building management and operations teams.';
 // Thai text on the page -> English (static labels, options, placeholders)
@@ -367,7 +367,6 @@ function startForm(BOOT) {
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   var form = $('#form');
-  var DRAFT_KEY = 'nextstage-request-draft-v1';
   var lastData = null;
 
   function esc(s) {
@@ -597,18 +596,8 @@ function startForm(BOOT) {
     syncVenue(); syncLinked();
   }
 
-  // ---------- draft (per-browser convenience only) ----------
-  var draftTimer;
-  function saveDraft() {
-    clearTimeout(draftTimer);
-    draftTimer = setTimeout(function () {
-      try { localStorage.setItem(DRAFT_KEY, JSON.stringify(collect())); $('#draftNote').textContent = L('บันทึกร่างในเบราว์เซอร์นี้แล้ว', 'Draft saved in this browser'); } catch (e) {}
-    }, 400);
-  }
-  function loadDraft() {
-    try { var s = localStorage.getItem(DRAFT_KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; }
-  }
-  function clearDraft() { try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} }
+  // no drafts: a refresh always starts an empty form
+  function saveDraft() {}
 
   // ---------- review ----------
   function kv(rows) {
@@ -695,7 +684,6 @@ function startForm(BOOT) {
   }
   function setLang(l) {
     LANG = l;
-    try { localStorage.setItem('nextstage-lang', l); } catch (e) {}
     applyLang();
     syncParkingText(); syncPayDue(); $('#draftNote').textContent = '';
     if (lastErrors && !$('#errors').classList.contains('hidden')) showServerErrors(lastErrors);
@@ -729,7 +717,6 @@ function startForm(BOOT) {
     call('submitRequest', lastData).then(function (res) {
       btn.textContent = L('ยืนยันและส่งแจ้งงาน', 'Confirm and submit');
       if (!res.ok) { btn.disabled = false; showStep('form'); return showServerErrors(res); }
-      clearDraft();
       lastId = res.id;
       renderDone();
       showStep('done');
@@ -737,9 +724,8 @@ function startForm(BOOT) {
   };
 
   applyLang();
-  var draft = loadDraft();
-  if (draft) { populate(draft); $('#draftNote').textContent = L('กู้คืนข้อมูลร่างที่กรอกค้างไว้แล้ว', 'Your saved draft has been restored'); }
-  else { $('#samePayer').checked = true; addRow('signers', 'tplSigner'); addRow('equipment', 'tplEquip', equipDefaults()); syncVenue(); syncLinked(); }
+  form.reset();
+  $('#samePayer').checked = true; addRow('signers', 'tplSigner'); addRow('equipment', 'tplEquip', equipDefaults()); syncVenue(); syncLinked();
 }
 
 if (BOOT) startForm(BOOT);
