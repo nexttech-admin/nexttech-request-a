@@ -91,17 +91,30 @@
   .checks small { display: block; color: var(--muted); }
   .checks small.alert { color: var(--danger); }
   .hp { position: absolute; left: -9999px; }
+  /* language switch */
+  header.top { position: relative; }
+  header.top h1 { padding-right: 104px; }
+  .lang { position: absolute; top: 2px; right: 0; display: flex; border: 1px solid var(--line); border-radius: 999px;
+    background: var(--card); padding: 3px; }
+  .lang button { border: 0; border-radius: 999px; padding: 4px 12px; font-size: .85rem; font-weight: 600; background: none; color: var(--muted); }
+  .lang button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  @media (prefers-color-scheme: dark) { .lang button[aria-pressed="true"] { color: #1d1b24; } }
+  .msg.info { background: var(--danger-soft); color: var(--danger); font-weight: 500; margin: 14px 0 0; font-size: .9rem; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
+    <div class="lang" role="group" aria-label="Language / ภาษา">
+      <button type="button" data-lang="th" aria-pressed="true">TH</button><button type="button" data-lang="en" aria-pressed="false">EN</button>
+    </div>
     <h1>แจ้งจัดงานในพื้นที่ SCBX NEXT STAGE</h1>
     <p id="subtitle">กรอกข้อมูลให้ครบแล้วกด “ตรวจทานข้อมูล” ระบบจะแสดงข้อมูลทั้งหมดให้ตรวจก่อนยืนยันส่ง</p>
+    <div id="enNote" class="msg info hidden" data-noi18n></div>
   </header>
   <div class="steps"><span data-s="form" class="on">1. กรอกข้อมูล</span><span data-s="review">2. ตรวจทาน</span><span data-s="done">3. ส่งแล้ว</span></div>
 
-  <div id="errors" class="msg err hidden"></div>
+  <div id="errors" class="msg err hidden" data-noi18n></div>
 
   <!-- ===================== STEP 1: FORM ===================== -->
   <form id="form" novalidate autocomplete="on">
@@ -178,7 +191,7 @@
       <h2>ผู้ติดต่อ</h2>
       <div class="grid">
         <label class="f">ชื่อผู้ประสานงาน (ผู้จัดงาน) <span class="req">*</span><input name="coordinatorName" placeholder="ชื่อ-นามสกุล"></label>
-        <label class="f">เบอร์โทรผู้ประสานงาน <span class="req">*</span><input type="tel" name="coordinatorPhone" placeholder="08x xxx xxxx"></label>
+        <label class="f">เบอร์โทรผู้ประสานงาน <span class="req">*</span><input type="tel" name="coordinatorPhone" inputmode="numeric" maxlength="15" placeholder="08xxxxxxxx"></label>
         <div class="f full">ผู้เซ็นกำกับในการแลกบัตรเข้าทำการ <span class="req">*</span>
           <div id="signers" style="margin-top:6px"></div>
           <button type="button" class="link" id="addSigner">+ เพิ่มผู้เซ็นกำกับ</button>
@@ -221,8 +234,8 @@
 
   <!-- ===================== STEP 2: REVIEW ===================== -->
   <section id="review" class="hidden">
-    <div id="warnings" class="msg warn hidden"></div>
-    <div class="card doc" id="reviewDoc"></div>
+    <div id="warnings" class="msg warn hidden" data-noi18n></div>
+    <div class="card doc" id="reviewDoc" data-noi18n></div>
     <label class="check card" id="confirmWrap" style="color:var(--ink)"><input type="checkbox" id="confirmBox"> ข้าพเจ้าตรวจสอบข้อมูลทั้งหมดแล้ว ถูกต้องครบถ้วน</label>
     <div class="bar">
       <button type="button" id="backBtn">← กลับไปแก้ไข</button>
@@ -234,7 +247,7 @@
   <section id="done" class="hidden">
     <div class="card">
       <h2 id="doneTitle">ส่งข้อมูลเรียบร้อยแล้ว</h2>
-      <div id="doneBody"></div>
+      <div id="doneBody" data-noi18n></div>
     </div>
   </section>
 </div>
@@ -243,7 +256,7 @@
   <div class="item"><button type="button" class="small rm">ลบ</button>
     <div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
       <label class="f">ชื่อ-นามสกุล<input data-k="name"></label>
-      <label class="f">เบอร์โทร<input type="tel" data-k="phone"></label>
+      <label class="f">เบอร์โทร<input type="tel" data-k="phone" inputmode="numeric" maxlength="15"></label>
     </div>
   </div>
 </template>
@@ -269,6 +282,87 @@ var BOOT = null;
 var API_URL = "https://script.google.com/macros/s/AKfycbzb4Q86ODKGuftrx3pFy8ASfUJ2Z1BnO8FA0k5_UFySg9CkOw5YCTe8-6tDMAgH4pimEQ/exec"; // ตั้งค่าโดย tools/build_standalone.js เมื่อโฮสต์หน้าฟอร์มนอก script.google.com
 </script>
 <script>
+// ---------- TH / EN (customer-facing only: what is sent and the ใบแจ้งงาน stay Thai) ----------
+var LANG = (function () {
+  var q = new URLSearchParams(location.search).get('lang');
+  if (q === 'en' || q === 'th') return q;
+  try { return localStorage.getItem('nextstage-lang') === 'en' ? 'en' : 'th'; } catch (e) { return 'th'; }
+})();
+function L(th, en) { return LANG === 'en' ? en : th; }
+var EN_NOTE = 'Please note: automated system emails will be sent in English, but the attached copy of the event notification form will be in Thai, as it is the same official form submitted to the building management and operations teams.';
+// Thai text on the page -> English (static labels, options, placeholders)
+var I18N = {
+  'แจ้งจัดงาน SCBX NEXT STAGE': 'SCBX NEXT STAGE Event Request',
+  'แจ้งจัดงานในพื้นที่ SCBX NEXT STAGE': 'Event Request – SCBX NEXT STAGE',
+  'กรอกข้อมูลให้ครบแล้วกด “ตรวจทานข้อมูล” ระบบจะแสดงข้อมูลทั้งหมดให้ตรวจก่อนยืนยันส่ง': 'Fill in all fields and click “Review”. You will see everything for a final check before you submit.',
+  '1. กรอกข้อมูล': '1. Fill in', '2. ตรวจทาน': '2. Review', '3. ส่งแล้ว': '3. Submitted',
+  'ข้อมูลผู้จัดงาน': 'Organizer details',
+  'ผู้เข้ารับผิดชอบจัดงานในพื้นที่': 'Organizer responsible for the event',
+  'ชื่อบริษัท / นิติบุคคล หรือชื่อ-นามสกุล': 'Company / legal entity name, or full name',
+  'อีเมลของผู้จัดงาน สำหรับรับสำเนาใบแจ้งงาน': "Organizer's email (to receive a copy of the form)",
+  'ค่าประกันสถานที่': 'Venue deposit',
+  'สถานะค่าประกันสถานที่': 'Venue deposit status',
+  'ผู้ชำระค่าเงินประกันสถานที่': 'Deposit payer',
+  'ชื่อเดียวกับผู้รับผิดชอบจัดงาน': 'Same as the organizer',
+  'ต้องตรงกับใบแจ้งหนี้ที่ชำระเงินเข้ามา': 'Must match the name on the payment',
+  'วันที่ผู้จัดงานจะชำระค่าประกันสถานที่': 'Date you will pay the venue deposit',
+  'รายละเอียดงาน': 'Event details', 'ชื่องาน': 'Event name', 'สถานที่': 'Venue', 'ระบุสถานที่': 'Specify venue',
+  'ลักษณะงาน': 'Event type', 'เช่น พิธีเปิดงาน, งานแถลงข่าว, Workshop': 'e.g. opening ceremony, press conference, workshop',
+  'วันที่จัดงาน (เริ่ม)': 'Event date (start)', 'ถึงวันที่ (ถ้าจัดหลายวัน)': 'End date (multi-day events)',
+  'วันและเวลาเข้าพื้นที่': 'Venue access dates and times',
+  'เวลาเปลี่ยนแปลงได้ตามความเหมาะสม ทีมงานจะยืนยันกับอาคารอีกครั้ง': 'Times may be adjusted as needed; our team will confirm them with the building.',
+  'วัน Set up': 'Set-up', 'วันรื้อถอน': 'Teardown', 'ส่งมอบพื้นที่': 'Venue handover', 'รับมอบพื้นที่': 'Venue return',
+  'วันเดียวกับวัน Set up': 'Same as set-up', 'วันเดียวกับวันรื้อถอน': 'Same as teardown',
+  'ผู้ติดต่อ': 'Contacts', 'ชื่อผู้ประสานงาน (ผู้จัดงาน)': "Coordinator's name (organizer side)", 'ชื่อ-นามสกุล': 'Full name',
+  'เบอร์โทรผู้ประสานงาน': "Coordinator's phone", 'ผู้เซ็นกำกับในการแลกบัตรเข้าทำการ': 'Authorized signers for access-card exchange',
+  '+ เพิ่มผู้เซ็นกำกับ': '+ Add signer', 'ใช้ข้อมูลผู้ประสานงาน': 'Use coordinator details',
+  'อุปกรณ์ที่ต้องการยืมใช้': 'Equipment to borrow', 'ถ้าไม่ต้องการยืมอุปกรณ์ ลบรายการออกได้ทั้งหมด': "If you don't need any equipment, remove all items.",
+  '+ เพิ่มอุปกรณ์': '+ Add equipment', 'สิ่งอำนวยความสะดวก': 'Facilities', 'ติ๊กเฉพาะรายการที่ต้องการ': 'Tick only what you need',
+  'ขอถังขยะในพื้นที่จัดกิจกรรม': 'Trash bins in the event area', 'สำหรับกรณีต้องการถังขยะในพื้นที่': 'If you need trash bins in the area',
+  'ขอเก็บเบาะทั้งหมด บริเวณขั้นบันไดที่นั่ง ของพื้นที่ SCBX Next Stage': 'Remove all cushions from the stair seating at SCBX Next Stage',
+  'สำหรับกรณีขอเก็บเบาะทั้งหมด บริเวณขั้นบันไดที่นั่ง ของพื้นที่ SCBX Next Stage': 'Only if all cushions on the stair seating at SCBX Next Stage must be removed',
+  'ขอเก็บโต๊ะเหล็กทั้งหมด บริเวณขั้นบันไดที่นั่ง ของพื้นที่ SCBX Next Stage': 'Remove all steel tables from the stair seating at SCBX Next Stage',
+  'สำหรับกรณีขอเก็บโต๊ะเหล็กทั้งหมด บริเวณขั้นบันไดที่นั่ง ของพื้นที่ SCBX Next Stage': 'Only if all steel tables on the stair seating at SCBX Next Stage must be removed',
+  'ขอสแกนบัตรจอดรถให้ทีมผู้จัดงาน': 'Parking validation for the organizer team', 'สำหรับคืนติดตั้งและคืนรื้อถอนงาน': 'For the set-up and teardown nights',
+  'ขอเปิดไฟแสงสว่างช่วงติดตั้งงาน': 'Lighting during set-up', 'ตั้งแต่เวลา Set up จนติดตั้งแล้วเสร็จ': 'From set-up time until set-up is complete',
+  'ขอเปิดไฟแสงสว่างช่วงรื้อถอนงาน': 'Lighting during teardown', 'ตั้งแต่เวลารื้อถอนจนรื้อถอนแล้วเสร็จ': 'From teardown time until teardown is complete',
+  'ตรวจทานข้อมูล →': 'Review →', 'ข้าพเจ้าตรวจสอบข้อมูลทั้งหมดแล้ว ถูกต้องครบถ้วน': 'I have checked all the information and confirm it is correct and complete',
+  '← กลับไปแก้ไข': '← Back to edit', 'ยืนยันและส่งแจ้งงาน': 'Confirm and submit', 'กำลังส่ง…': 'Submitting…',
+  'ส่งข้อมูลเรียบร้อยแล้ว': 'Submitted successfully',
+  'ลบ': 'Remove', 'เบอร์โทร': 'Phone', 'อุปกรณ์': 'Equipment', 'จำนวน': 'Quantity', 'สถานที่ส่ง': 'Delivery location',
+  'ระบุสถานที่ส่ง': 'Specify delivery location', 'ส่งวันที่': 'Delivery date', 'เวลาส่ง': 'Delivery time',
+  'เก็บวันที่': 'Pick-up date', 'เวลาเก็บ': 'Pick-up time',
+  'อื่นๆ (ระบุ)': 'Other (specify)', '— เลือกอุปกรณ์ —': '— Select equipment —',
+  'จ่ายค่าประกันสถานที่แล้ว': 'Venue deposit paid', 'ยังไม่จ่ายค่าประกันสถานที่': 'Venue deposit not yet paid', 'ยกเว้นค่าประกันสถานที่': 'Venue deposit waived',
+  'บริษัท': 'Company', 'นิติบุคคล': 'Legal entity', 'บุคคลธรรมดา': 'Individual',
+  'SCBX Next Stage ชั้น 4': 'SCBX Next Stage, 4th floor', 'Next Tech Event Space ชั้น 4': 'Next Tech Event Space, 4th floor',
+  'โต๊ะ+ผ้าคลุม': 'Table with cover', 'เก้าอี้+ผ้าคลุม': 'Chair with cover', 'เสาคิว': 'Queue stanchion',
+  'เก้าอี้เสริมหน้าเวทีพร้อมผ้าคลุม': 'Chair with cover (front of stage)'
+};
+var I18N_BACK = {};
+Object.keys(I18N).forEach(function (k) { I18N_BACK[I18N[k]] = k; });
+function i18nText(s) {
+  var key = s.trim(); if (!key) return s;
+  var th = I18N_BACK[key] || key, out = LANG === 'en' ? (I18N[th] || key) : (I18N_BACK[key] ? th : key);
+  return s.replace(key, out);
+}
+/** Swap static texts and placeholders under root (skips [data-noi18n], which is re-rendered per language) */
+function applyLang(root) {
+  root = root || document.body;
+  var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: function (n) {
+    return n.parentElement && n.parentElement.closest('[data-noi18n],script,style') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+  } });
+  var n; while ((n = walker.nextNode())) { var t = i18nText(n.nodeValue); if (t !== n.nodeValue) n.nodeValue = t; }
+  Array.prototype.forEach.call(root.querySelectorAll('[placeholder]'), function (el) { el.placeholder = i18nText(el.placeholder); });
+  if (root === document.body) {
+    document.documentElement.lang = LANG;
+    document.title = i18nText('แจ้งจัดงาน SCBX NEXT STAGE');
+    var note = document.getElementById('enNote');
+    note.textContent = EN_NOTE; note.classList.toggle('hidden', LANG !== 'en');
+    Array.prototype.forEach.call(document.querySelectorAll('.lang button'), function (b) { b.setAttribute('aria-pressed', String(b.dataset.lang === LANG)); });
+  }
+}
+
 function startForm(BOOT) {
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
@@ -304,7 +398,7 @@ function startForm(BOOT) {
   function showErrors(list) {
     var box = $('#errors');
     if (!list || !list.length) { box.classList.add('hidden'); return; }
-    box.innerHTML = '<b>กรุณาตรวจสอบข้อมูล</b><ul>' + list.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ul>';
+    box.innerHTML = '<b>' + L('กรุณาตรวจสอบข้อมูล', 'Please check the following') + '</b><ul>' + list.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ul>';
     box.classList.remove('hidden');
     window.scrollTo(0, 0);
   }
@@ -313,17 +407,18 @@ function startForm(BOOT) {
   $('#depositRadios').innerHTML = ['paid', 'unpaid', 'waived'].map(function (k) {
     return '<label><input type="radio" name="depositStatus" value="' + k + '"> ' + esc(BOOT.depositLabels[k]) + '</label>';
   }).join('');
-  $('#venueChoice').innerHTML = BOOT.venues.map(function (v) { return '<option>' + esc(v) + '</option>'; }).join('') +
+  $('#venueChoice').innerHTML = BOOT.venues.map(function (v) { return '<option value="' + esc(v) + '">' + esc(v) + '</option>'; }).join('') +
     '<option value="__other">อื่นๆ (ระบุ)</option>';
   $$('[data-party]').forEach(function (box) {
     box.innerHTML = Object.keys(BOOT.partyTypes).map(function (k) {
       return '<label><input type="radio" name="' + box.dataset.party + '" value="' + k + '"> ' + esc(BOOT.partyTypes[k]) + '</label>';
     }).join('');
   });
-  $('#parkingHoursText').textContent = '(' + BOOT.parkingHours + ' ชม.)';
+  function syncParkingText() { $('#parkingHoursText').textContent = '(' + BOOT.parkingHours + L(' ชม.)', ' hrs)'); }
+  syncParkingText();
   function choiceHtml(list, placeholder, withOther) {
     return (placeholder ? '<option value="">' + placeholder + '</option>' : '') + list.map(function (v) {
-      return '<option>' + esc(v) + '</option>';
+      return '<option value="' + esc(v) + '">' + esc(v) + '</option>';
     }).join('') + (withOther ? '<option value="__other">อื่นๆ (ระบุ)</option>' : '');
   }
   var CHOICES = {
@@ -357,6 +452,7 @@ function startForm(BOOT) {
     });
     $('.rm', node).addEventListener('click', function () { node.remove(); saveDraft(); });
     $('#' + listId).appendChild(node);
+    applyLang(node);
     return node;
   }
   function readRows(listId) {
@@ -396,7 +492,8 @@ function startForm(BOOT) {
     $('#payDueWrap').classList.toggle('hidden', !unpaid);
     var n = BOOT.payBeforeBusinessDays || 5, off = {};
     (BOOT.holidays || []).forEach(function (h) { off[h] = true; });
-    var hint = 'ต้องไม่น้อยกว่า ' + n + ' วันทำการ ก่อนวันเข้าพื้นที่ Set up (ไม่นับเสาร์-อาทิตย์และวันหยุดนักขัตฤกษ์)';
+    var hint = L('ต้องไม่น้อยกว่า ' + n + ' วันทำการ ก่อนวันเข้าพื้นที่ Set up (ไม่นับเสาร์-อาทิตย์และวันหยุดนักขัตฤกษ์)',
+      'At least ' + n + ' business days before set-up (excluding weekends and Thai public holidays)');
     f('payDueDate').removeAttribute('max');
     if (setup) {
       var t = new Date(setup + 'T00:00:00Z'), left = n;
@@ -405,7 +502,8 @@ function startForm(BOOT) {
         if (t.getUTCDay() !== 0 && t.getUTCDay() !== 6 && !off[t.toISOString().slice(0, 10)]) left--;
       }
       f('payDueDate').max = t.toISOString().slice(0, 10);
-      hint += ' — ชำระได้ภายในวันที่ ' + t.getUTCDate() + '/' + (t.getUTCMonth() + 1) + '/' + (t.getUTCFullYear() + 543);
+      hint += L(' — ชำระได้ภายในวันที่ ' + t.getUTCDate() + '/' + (t.getUTCMonth() + 1) + '/' + (t.getUTCFullYear() + 543),
+        ' — pay by ' + t.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }));
     }
     $('#payDueHint').textContent = hint;
   }
@@ -421,6 +519,11 @@ function startForm(BOOT) {
     ['handoverDate', 'handoverTime'].forEach(function (n) { f(n).readOnly = $('#sameHandover').checked; });
     ['returnDate', 'returnTime'].forEach(function (n) { f(n).readOnly = $('#sameReturn').checked; });
   }
+  // phone fields: digits only (typed or pasted)
+  form.addEventListener('input', function (ev) {
+    var el = ev.target;
+    if (el.type === 'tel' && /\D/.test(el.value)) el.value = el.value.replace(/\D/g, '');
+  }, true);
   form.addEventListener('input', function () { syncLinked(); saveDraft(); });
   form.addEventListener('change', function () { syncLinked(); saveDraft(); });
   // new equipment rows follow set-up / teardown dates until edited individually
@@ -476,6 +579,7 @@ function startForm(BOOT) {
     ['signers', 'equipment'].forEach(function (id) { $('#' + id).innerHTML = ''; });
     (d.signers || []).forEach(function (r) { addRow('signers', 'tplSigner', r); });
     (d.equipment || []).forEach(function (r) { addRow('equipment', 'tplEquip', r); });
+    $$('input[type="tel"]').forEach(function (el) { el.value = el.value.replace(/\D/g, ''); }); // drafts saved before digits-only
     syncVenue(); syncLinked();
   }
 
@@ -484,7 +588,7 @@ function startForm(BOOT) {
   function saveDraft() {
     clearTimeout(draftTimer);
     draftTimer = setTimeout(function () {
-      try { localStorage.setItem(DRAFT_KEY, JSON.stringify(collect())); $('#draftNote').textContent = 'บันทึกร่างในเบราว์เซอร์นี้แล้ว'; } catch (e) {}
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify(collect())); $('#draftNote').textContent = L('บันทึกร่างในเบราว์เซอร์นี้แล้ว', 'Draft saved in this browser'); } catch (e) {}
     }, 400);
   }
   function loadDraft() {
@@ -528,6 +632,64 @@ function startForm(BOOT) {
     $('#reviewDoc').innerHTML = html.replace(/\n/g, '<br>');
   }
 
+  /** EN review: same content as the Thai document, English labels and dates (display only) */
+  function renderReviewEn(m) {
+    var boxes = ['paid', 'unpaid', 'waived'].map(function (k) {
+      return '<div><span class="box' + (m.depositStatus === k ? ' on' : '') + '"></span>' + esc(I18N[BOOT.depositLabels[k]] || BOOT.depositLabels[k]) + '</div>';
+    }).join('') + (m.payer ? '<div style="margin:4px 0 0 22px">Paid by: <b>' + esc(m.payer) + '</b> (' + esc(m.payerType) + ')</div>' : '') +
+      (m.payDueDate ? '<div style="margin:2px 0 0 22px">Deposit due: <b>by ' + esc(m.payDueDate) + '</b></div>' : '');
+    var html = '<h3>Event notification form – common area</h3>' +
+      '<div style="margin-bottom:12px">' + boxes + '</div>' +
+      kv([['Date of request', m.reportDate], ['Organizer', m.organizer + ' (' + m.organizerType + ')'], ['Event name', m.eventName],
+        ['Venue', m.venue], ['Event type', m.eventType], ['Event date', m.eventDate + ' (' + m.eventDays + (m.eventDays > 1 ? ' days)' : ' day)')],
+        ['Set-up', m.setupDate + ', from ' + m.setupTime]]
+        .concat(m.extraSetup.map(function (x) { return ['Additional set-up', x.date + ', from ' + x.time]; }))
+        .concat([['Teardown', m.teardownDate + ' at ' + m.teardownTime],
+          ['Venue handover', m.handoverDate + ' at ' + m.handoverTime],
+          ['Venue return', m.returnDate + ' at ' + m.returnTime],
+          ['Access-card signers', m.signers.map(function (s) { return s.text; }).join('\n')],
+          ['Coordinator', m.coordinator]])) +
+      '<h3>Services — equipment</h3>' + (m.equipment.length ? '<div class="tbl"><table><thead><tr><th>Equipment</th><th>Qty</th><th>Delivery location</th><th>Delivery date</th><th>Time</th><th>Pick-up date</th><th>Time</th></tr></thead><tbody>' +
+      m.equipment.map(function (x) {
+        return '<tr><td>' + [x.item, x.qty, x.place, x.sendDate, x.sendTime, x.pickDate, x.pickTime].map(esc).join('</td><td>') + '</td></tr>';
+      }).join('') + '</tbody></table></div>' : '<p>No equipment requested</p>') +
+      (m.waiveEquipmentFee ? '<p><b>*** All equipment fees for this event are waived ***</b></p>' : '') +
+      (m.equipmentNotes.length ? kv([['Other requests', m.equipmentNotes.map(function (x) { return x.text; }).join('\n')]]) : '') +
+      '<h3>Card exchange room, B1</h3>' + kv([['Parking validation', m.parking ? m.parkingHours + ' hrs for the organizer team on set-up and teardown nights' : 'Not requested']]) +
+      '<h3>Electrical</h3>' + kv(m.lights ? [['Lighting', m.venue],
+        m.lightsSetup ? ['Set-up', m.setupDate + ' from ' + m.setupTime + ' until complete'] : null,
+        m.lightsTeardown ? ['Teardown', m.teardownDate + ' from ' + m.teardownTime + ' until complete'] : null]
+        : [['Lighting', 'Not requested']]);
+    $('#reviewDoc').innerHTML = html.replace(/\n/g, '<br>');
+  }
+  // last server answers, kept so switching language re-renders them without another request
+  var lastPreview = null, lastErrors = null, lastId = '';
+  function showPreview() {
+    var res = lastPreview, warns = L(res.warnings, res.warningsEn || res.warnings);
+    var w = $('#warnings');
+    w.innerHTML = warns.length ? '<b>' + L('โปรดตรวจสอบ', 'Please double-check') + '</b><ul>' + warns.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' : '';
+    w.classList.toggle('hidden', !warns.length);
+    if (LANG === 'en' && res.modelEn) renderReviewEn(res.modelEn); else renderReview(res.model);
+  }
+  function showServerErrors(res) { lastErrors = res; showErrors(res ? L(res.errors, res.errorsEn || res.errors) : null); }
+  function renderDone() {
+    $('#doneBody').innerHTML = L('<p>เลขที่คำขอ <b>' + esc(lastId) + '</b></p><p><b>ได้รับคำขอจัดงานแล้ว รอเจ้าหน้าที่ตรวจสอบเอกสาร</b></p>' +
+      '<p>เมื่อเจ้าหน้าที่รับเรื่องแล้ว ระบบจะส่งใบแจ้งงานฉบับสมบูรณ์ไปที่ <b>' + esc(lastData.contactEmail) + '</b></p>',
+      '<p>Request no. <b>' + esc(lastId) + '</b></p><p><b>We have received your event request. Our staff will review the documents shortly.</b></p>' +
+      '<p>Once your request is accepted, the completed event notification form will be sent to <b>' + esc(lastData.contactEmail) + '</b>.</p>' +
+      '<p style="color:var(--danger);font-weight:500">' + esc(EN_NOTE) + '</p>');
+  }
+  function setLang(l) {
+    LANG = l;
+    try { localStorage.setItem('nextstage-lang', l); } catch (e) {}
+    applyLang();
+    syncParkingText(); syncPayDue(); $('#draftNote').textContent = '';
+    if (lastErrors && !$('#errors').classList.contains('hidden')) showServerErrors(lastErrors);
+    if (lastPreview && !$('#review').classList.contains('hidden')) showPreview();
+    if (lastId) renderDone();
+  }
+  $$('.lang button').forEach(function (b) { b.onclick = function () { setLang(b.dataset.lang); }; });
+
   form.addEventListener('submit', function (ev) {
     ev.preventDefault();
     var btn = $('#toReview');
@@ -535,12 +697,10 @@ function startForm(BOOT) {
     lastData = collect();
     call('previewRequest', lastData).then(function (res) {
       btn.disabled = false;
-      if (res.errors.length) return showErrors(res.errors);
-      showErrors(null);
-      var w = $('#warnings');
-      w.innerHTML = res.warnings.length ? '<b>โปรดตรวจสอบ</b><ul>' + res.warnings.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' : '';
-      w.classList.toggle('hidden', !res.warnings.length);
-      renderReview(res.model);
+      if (res.errors.length) return showServerErrors(res);
+      showServerErrors(null);
+      lastPreview = res;
+      showPreview();
       $('#confirmBox').checked = false;
       $('#submitBtn').disabled = true;
       showStep('review');
@@ -550,25 +710,27 @@ function startForm(BOOT) {
   $('#backBtn').onclick = function () { showStep('form'); };
   $('#submitBtn').onclick = function () {
     var btn = this;
-    btn.disabled = true; btn.textContent = 'กำลังส่ง…';
+    btn.disabled = true; btn.textContent = L('กำลังส่ง…', 'Submitting…');
+    lastData.lang = LANG; // language of the customer's emails only; the document stays Thai
     call('submitRequest', lastData).then(function (res) {
-      btn.textContent = 'ยืนยันและส่งแจ้งงาน';
-      if (!res.ok) { btn.disabled = false; showStep('form'); return showErrors(res.errors); }
+      btn.textContent = L('ยืนยันและส่งแจ้งงาน', 'Confirm and submit');
+      if (!res.ok) { btn.disabled = false; showStep('form'); return showServerErrors(res); }
       clearDraft();
-      $('#doneBody').innerHTML = '<p>เลขที่คำขอ <b>' + esc(res.id) + '</b></p><p><b>ได้รับคำขอจัดงานแล้ว รอเจ้าหน้าที่ตรวจสอบเอกสาร</b></p>' +
-        '<p>เมื่อเจ้าหน้าที่รับเรื่องแล้ว ระบบจะส่งใบแจ้งงานฉบับสมบูรณ์ไปที่ <b>' + esc(lastData.contactEmail) + '</b></p>';
+      lastId = res.id;
+      renderDone();
       showStep('done');
-    }).catch(function (e) { btn.disabled = false; btn.textContent = 'ยืนยันและส่งแจ้งงาน'; showErrors([e.message || String(e)]); });
+    }).catch(function (e) { btn.disabled = false; btn.textContent = L('ยืนยันและส่งแจ้งงาน', 'Confirm and submit'); showErrors([e.message || String(e)]); });
   };
 
+  applyLang();
   var draft = loadDraft();
-  if (draft) { populate(draft); $('#draftNote').textContent = 'กู้คืนข้อมูลร่างที่กรอกค้างไว้แล้ว'; }
+  if (draft) { populate(draft); $('#draftNote').textContent = L('กู้คืนข้อมูลร่างที่กรอกค้างไว้แล้ว', 'Your saved draft has been restored'); }
   else { $('#samePayer').checked = true; addRow('signers', 'tplSigner'); addRow('equipment', 'tplEquip', equipDefaults()); syncVenue(); syncLinked(); }
 }
 
 if (BOOT) startForm(BOOT);
 else fetch(API_URL + '?api=boot').then(function (r) { return r.json(); }).then(startForm).catch(function () {
-  document.getElementById('errors').textContent = 'โหลดฟอร์มไม่สำเร็จ กรุณารีเฟรชหน้านี้อีกครั้ง';
+  document.getElementById('errors').textContent = L('โหลดฟอร์มไม่สำเร็จ กรุณารีเฟรชหน้านี้อีกครั้ง', 'The form could not be loaded. Please refresh this page.');
   document.getElementById('errors').classList.remove('hidden');
 });
 </script>
