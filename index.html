@@ -516,8 +516,6 @@ function startForm(BOOT) {
     $$('input[name="payerType"]').forEach(function (r) { r.disabled = $('#samePayer').checked; });
     if ($('#sameHandover').checked) { f('handoverDate').value = f('setupDate').value; f('handoverTime').value = f('setupTime').value; }
     if ($('#sameReturn').checked) { f('returnDate').value = f('teardownDate').value; f('returnTime').value = f('teardownTime').value; }
-    ['handoverDate', 'handoverTime'].forEach(function (n) { f(n).readOnly = $('#sameHandover').checked; });
-    ['returnDate', 'returnTime'].forEach(function (n) { f(n).readOnly = $('#sameReturn').checked; });
   }
   // phone fields: digits only (typed or pasted)
   form.addEventListener('input', function (ev) {
@@ -537,6 +535,14 @@ function startForm(BOOT) {
     el.setCustomValidity(bad ? L('กรุณาใส่ปี ค.ศ. 4 หลัก (20xx)', 'Please enter a 4-digit year (20xx)') : '');
     if (bad) { el.value = ''; el.reportValidity(); }
   });
+  // editing handover / return yourself unticks "same as set-up / teardown" (runs before syncLinked copies values)
+  var SAME_BOX = { handoverDate: 'sameHandover', handoverTime: 'sameHandover', returnDate: 'sameReturn', returnTime: 'sameReturn' };
+  function untickSame(ev) {
+    var box = SAME_BOX[ev.target.name];
+    if (!box || (ev.type === 'keydown' && /^(Tab|Shift|Escape|Enter|Meta|Control|Alt)$/.test(ev.key))) return;
+    $('#' + box).checked = false;
+  }
+  ['keydown', 'input', 'change'].forEach(function (t) { form.addEventListener(t, untickSame, true); });
   form.addEventListener('input', function () { syncLinked(); saveDraft(); });
   form.addEventListener('change', function () { syncLinked(); saveDraft(); });
   // new equipment rows follow set-up / teardown dates until edited individually
