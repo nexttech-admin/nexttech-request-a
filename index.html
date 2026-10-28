@@ -99,6 +99,8 @@
   .lang button { border: 0; border-radius: 999px; padding: 4px 12px; font-size: .85rem; font-weight: 600; background: none; color: var(--muted); }
   .lang button[aria-pressed="true"] { background: var(--accent); color: #fff; }
   @media (prefers-color-scheme: dark) { .lang button[aria-pressed="true"] { color: #1d1b24; } }
+  .dateEcho { display: block; margin-top: 4px; font-size: .8rem; font-weight: 500; color: var(--accent); }
+  .dateEcho:empty { display: none; }
   .msg.info { background: var(--danger-soft); color: var(--danger); font-weight: 500; margin: 14px 0 0; font-size: .9rem; }
 </style>
 </head>
@@ -452,6 +454,7 @@ function startForm(BOOT) {
     $('.rm', node).addEventListener('click', function () { node.remove(); saveDraft(); });
     $('#' + listId).appendChild(node);
     if (typeof limitDates === 'function') limitDates(node);
+    setTimeout(showDateEchoes);
     applyLang(node);
     return node;
   }
@@ -516,6 +519,21 @@ function startForm(BOOT) {
     $$('input[name="payerType"]').forEach(function (r) { r.disabled = $('#samePayer').checked; });
     if ($('#sameHandover').checked) { f('handoverDate').value = f('setupDate').value; f('handoverTime').value = f('setupTime').value; }
     if ($('#sameReturn').checked) { f('returnDate').value = f('teardownDate').value; f('returnTime').value = f('teardownTime').value; }
+    showDateEchoes();
+  }
+  // under each date field: the date as the document will show it (TH: พ.ศ.), since the field itself is always ค.ศ.
+  function showDateEchoes() {
+    $$('input[type="date"]', form).forEach(function (el) {
+      var anchor = el.closest('.pair') || el, echo = anchor.nextElementSibling;
+      if (!echo || !echo.classList.contains('dateEcho')) {
+        echo = document.createElement('span'); echo.className = 'dateEcho'; echo.setAttribute('data-noi18n', '');
+        anchor.parentNode.insertBefore(echo, anchor.nextSibling);
+      }
+      var ok = /^20\d\d-\d\d-\d\d$/.test(el.value), short = !!el.closest('.item');
+      var opts = short ? { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }
+        : { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' };
+      echo.textContent = ok ? '= ' + new Date(el.value + 'T00:00:00Z').toLocaleDateString(L('th-TH', 'en-GB'), opts) : '';
+    });
   }
   // phone fields: digits only (typed or pasted)
   form.addEventListener('input', function (ev) {
@@ -698,7 +716,7 @@ function startForm(BOOT) {
   function setLang(l) {
     LANG = l;
     applyLang();
-    syncParkingText(); syncPayDue(); $('#draftNote').textContent = '';
+    syncParkingText(); syncPayDue(); showDateEchoes(); $('#draftNote').textContent = '';
     if (lastErrors && !$('#errors').classList.contains('hidden')) showServerErrors(lastErrors);
     if (lastPreview && !$('#review').classList.contains('hidden')) showPreview();
     if (lastId) renderDone();
