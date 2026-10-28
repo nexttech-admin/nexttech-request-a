@@ -452,6 +452,7 @@ function startForm(BOOT) {
     });
     $('.rm', node).addEventListener('click', function () { node.remove(); saveDraft(); });
     $('#' + listId).appendChild(node);
+    if (typeof limitDates === 'function') limitDates(node);
     applyLang(node);
     return node;
   }
@@ -494,7 +495,7 @@ function startForm(BOOT) {
     (BOOT.holidays || []).forEach(function (h) { off[h] = true; });
     var hint = L('ต้องไม่น้อยกว่า ' + n + ' วันทำการ ก่อนวันเข้าพื้นที่ Set up (ไม่นับเสาร์-อาทิตย์และวันหยุดนักขัตฤกษ์)',
       'At least ' + n + ' business days before set-up (excluding weekends and Thai public holidays)');
-    f('payDueDate').removeAttribute('max');
+    f('payDueDate').max = DATE_MAX;
     if (setup) {
       var t = new Date(setup + 'T00:00:00Z'), left = n;
       while (left > 0) {
@@ -524,6 +525,19 @@ function startForm(BOOT) {
     var el = ev.target;
     if (el.type === 'tel' && /\D/.test(el.value)) el.value = el.value.replace(/\D/g, '');
   }, true);
+  // date fields: year must be 4 digits, 20xx (ค.ศ.) — the document shows พ.ศ. by itself
+  var DATE_MIN = '2000-01-01', DATE_MAX = '2099-12-31';
+  function limitDates(root) {
+    $$('input[type="date"]', root).forEach(function (el) { el.min = DATE_MIN; if (!el.max) el.max = DATE_MAX; });
+  }
+  limitDates(form);
+  form.addEventListener('focusout', function (ev) {
+    var el = ev.target;
+    if (el.type !== 'date') return;
+    var bad = el.value && !/^20\d\d-/.test(el.value);
+    el.setCustomValidity(bad ? L('กรุณาใส่ปี ค.ศ. 4 หลัก (20xx)', 'Please enter a 4-digit year (20xx)') : '');
+    if (bad) { el.value = ''; el.reportValidity(); }
+  });
   form.addEventListener('input', function () { syncLinked(); saveDraft(); });
   form.addEventListener('change', function () { syncLinked(); saveDraft(); });
   // new equipment rows follow set-up / teardown dates until edited individually
